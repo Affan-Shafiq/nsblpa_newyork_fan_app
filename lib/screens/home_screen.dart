@@ -119,7 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
               label: 'News',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.sports_football),
+              icon: Icon(Icons.analytics),
               label: 'Games',
             ),
             BottomNavigationBarItem(

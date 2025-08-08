@@ -309,12 +309,12 @@ class RewardsScreen extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         _buildRedeemCard(
-          icon: Icons.sports_football,
-          title: 'Game Tickets',
-          description: 'Free tickets to home games',
+          icon: Icons.analytics,
+          title: 'VIP Experience',
+          description: 'Exclusive VIP access to events',
           points: '1500',
           onTap: () {
-            // TODO: Redeem tickets
+            // TODO: Redeem VIP experience
           },
         ),
       ],

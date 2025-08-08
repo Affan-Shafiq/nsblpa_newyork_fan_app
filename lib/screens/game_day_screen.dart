@@ -81,7 +81,7 @@ class _GameDayScreenState extends State<GameDayScreen> {
             Row(
               children: [
                 Icon(
-                  Icons.sports_football,
+                  Icons.analytics,
                   color: Colors.white,
                   size: 24,
                 ),
@@ -201,10 +201,10 @@ class _GameDayScreenState extends State<GameDayScreen> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () {
-                  // TODO: Purchase tickets
+                  // TODO: View game details
                 },
-                icon: const Icon(Icons.shopping_cart),
-                label: const Text('Buy Tickets'),
+                icon: const Icon(Icons.info),
+                label: const Text('Game Details'),
               ),
             ),
           ],
@@ -298,14 +298,13 @@ class GameCard extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                if (game.ticketUrl != null)
-                  TextButton.icon(
-                    onPressed: () {
-                      // TODO: Open ticket URL
-                    },
-                    icon: const Icon(Icons.shopping_cart, size: 16),
-                    label: const Text('Tickets'),
-                  ),
+                TextButton.icon(
+                  onPressed: () {
+                    // TODO: View game info
+                  },
+                  icon: const Icon(Icons.info, size: 16),
+                  label: const Text('Details'),
+                ),
               ],
             ),
             const SizedBox(height: 12),

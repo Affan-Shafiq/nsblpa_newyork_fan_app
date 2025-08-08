@@ -48,7 +48,6 @@ class MockDataService {
         venue: 'Miami Arena',
         isHome: true,
         status: 'upcoming',
-        ticketUrl: 'https://tickets.example.com/game1',
       ),
       Game(
         id: '2',
@@ -57,7 +56,6 @@ class MockDataService {
         venue: 'Chicago Stadium',
         isHome: false,
         status: 'upcoming',
-        ticketUrl: 'https://tickets.example.com/game2',
       ),
       Game(
         id: '3',

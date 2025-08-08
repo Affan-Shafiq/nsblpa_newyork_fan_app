@@ -180,16 +180,18 @@ class _LoginScreenState extends State<LoginScreen> {
                 Column(
                   children: [
                     Container(
-                      width: 80,
-                      height: 80,
+                      width: 180,
+                      height: 180,
                       decoration: BoxDecoration(
-                        color: AppTheme.primaryColor,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
-                        Icons.sports_basketball,
-                        color: Colors.white,
-                        size: 40,
+                      child: ClipOval(
+                        child: Image.asset(
+                          'assets/logos/miami_logo.png',
+                          width: 180,
+                          height: 180,
+                          fit: BoxFit.contain,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 24),
