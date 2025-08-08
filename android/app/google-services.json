@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "493050521152",
+    "project_id": "nsblpa-fan-app",
+    "storage_bucket": "nsblpa-fan-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:493050521152:android:c122b04f20409acc9261a5",
+        "android_client_info": {
+          "package_name": "com.example.nsblpa_fan_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB8qJRjvivn-wnQcfN6-TYaRR1uizVG_6k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
