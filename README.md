@@ -28,12 +28,6 @@ A comprehensive fan engagement app for the Miami Revenue Runners team, built wit
 - Ticket purchasing integration
 - Game status tracking (upcoming, live, completed)
 
-### 🛒 Merch Store
-- Team-branded merchandise
-- Category filtering
-- Sale items and promotions
-- Shopping cart functionality
-
 ### 🧑‍🤝‍🧑 Fan Leaderboards
 - Top fans by engagement and points
 - Weekly, monthly, and all-time rankings
@@ -45,13 +39,6 @@ A comprehensive fan engagement app for the Miami Revenue Runners team, built wit
 - Featured content selection
 - Social media integration
 - Like and share functionality
-
-### 📣 Push Notifications
-- Score updates
-- Player transfers
-- Merchandise drops
-- Event alerts
-- Customizable preferences
 
 ## 🎨 Design
 
