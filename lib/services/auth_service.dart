@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/app_user.dart';
 import '../constants/app_config.dart';
+import '../models/app_user.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -128,14 +128,43 @@ class AuthService {
     try {
       print('Starting Google Sign-In process');
       
-      // Use FirebaseAuth's native Google provider flow
-      final userCredential = await _auth.signInWithProvider(GoogleAuthProvider());
+      // Create Google Auth Provider with additional scopes
+      final GoogleAuthProvider googleProvider = GoogleAuthProvider();
+      googleProvider.addScope('https://www.googleapis.com/auth/userinfo.profile');
+      googleProvider.addScope('https://www.googleapis.com/auth/userinfo.email');
+      
+      // Sign in with the provider (works on mobile and web)
+      final userCredential = await _auth.signInWithProvider(googleProvider);
       print('Firebase authentication successful: ${userCredential.user?.uid}');
       
-      // Ensure Firestore user document exists
+      // Ensure Firestore user document exists with Google account details
       final signedInUser = userCredential.user;
       if (signedInUser != null) {
-        await _ensureUserDocument(signedInUser);
+        print('Firebase user display name: ${signedInUser.displayName}');
+        print('Firebase user email: ${signedInUser.email}');
+        print('Firebase user photo URL: ${signedInUser.photoURL}');
+        
+        // Force reload to get the latest user data
+        await signedInUser.reload();
+        final refreshedUser = _auth.currentUser;
+        
+        print('After reload - display name: ${refreshedUser?.displayName}');
+        print('After reload - email: ${refreshedUser?.email}');
+        print('After reload - photo URL: ${refreshedUser?.photoURL}');
+        
+        // Use the refreshed user data
+        final displayName = refreshedUser?.displayName ?? signedInUser.displayName;
+        final photoUrl = refreshedUser?.photoURL ?? signedInUser.photoURL;
+        
+        print('Final display name to use: $displayName');
+        print('Final photo URL to use: $photoUrl');
+        
+        // Explicitly pass the display name from Google account
+        await _ensureUserDocument(
+          refreshedUser ?? signedInUser,
+          explicitDisplayName: displayName,
+          explicitPhotoUrl: photoUrl,
+        );
       }
 
       return userCredential;
@@ -153,7 +182,18 @@ class AuthService {
         try {
           final current = _auth.currentUser;
           if (current != null) {
-            await _ensureUserDocument(current);
+            // Force reload to get the latest data
+            await current.reload();
+            final refreshedUser = _auth.currentUser;
+            
+            print('PigeonUserDetails error - refreshed display name: ${refreshedUser?.displayName}');
+            
+            // Ensure we still capture the display name even if there's an error
+            await _ensureUserDocument(
+              refreshedUser ?? current,
+              explicitDisplayName: refreshedUser?.displayName ?? current.displayName,
+              explicitPhotoUrl: refreshedUser?.photoURL ?? current.photoURL,
+            );
           }
         } catch (ensureError) {
           print('Failed ensuring user document after Google PigeonUserDetails: $ensureError');
@@ -181,13 +221,30 @@ class AuthService {
       final uid = user.uid;
       final docRef = FirebaseFirestore.instance.collection('users').doc(uid);
       final snapshot = await docRef.get();
+      
+      print('_ensureUserDocument - UID: $uid');
+      print('_ensureUserDocument - User display name: ${user.displayName}');
+      print('_ensureUserDocument - Explicit display name: $explicitDisplayName');
+      print('_ensureUserDocument - User email: ${user.email}');
+      print('_ensureUserDocument - Explicit email: $explicitEmail');
+      print('_ensureUserDocument - User photo URL: ${user.photoURL}');
+      print('_ensureUserDocument - Explicit photo URL: $explicitPhotoUrl');
+      
       if (snapshot.exists) {
         // Merge updates including new fields if they don't exist
         final existingData = snapshot.data() ?? {};
+        final finalDisplayName = explicitDisplayName ?? user.displayName;
+        final finalEmail = explicitEmail ?? user.email;
+        final finalPhotoUrl = explicitPhotoUrl ?? user.photoURL;
+        
+        print('_ensureUserDocument - Final display name to save: $finalDisplayName');
+        print('_ensureUserDocument - Final email to save: $finalEmail');
+        print('_ensureUserDocument - Final photo URL to save: $finalPhotoUrl');
+        
         await docRef.set({
-          if (explicitEmail != null) 'email': explicitEmail else 'email': user.email,
-          if (explicitDisplayName != null) 'displayName': explicitDisplayName else 'displayName': user.displayName,
-          if (explicitPhotoUrl != null) 'photoUrl': explicitPhotoUrl else 'photoUrl': user.photoURL,
+          'email': finalEmail,
+          'displayName': finalDisplayName,
+          'photoUrl': finalPhotoUrl,
           'teamId': AppConfig.teamId,
           // Add new fields if they don't exist
           if (!existingData.containsKey('points')) 'points': 0,
@@ -198,10 +255,16 @@ class AuthService {
         return;
       }
 
+      final finalDisplayName = explicitDisplayName ?? user.displayName;
+      final finalEmail = explicitEmail ?? user.email;
+      final finalPhotoUrl = explicitPhotoUrl ?? user.photoURL;
+      
+      print('_ensureUserDocument - Creating new user with display name: $finalDisplayName');
+      
       final appUser = AppUser(
-        email: explicitEmail ?? user.email ?? '',
-        displayName: explicitDisplayName ?? user.displayName,
-        photoUrl: explicitPhotoUrl ?? user.photoURL,
+        email: finalEmail ?? '',
+        displayName: finalDisplayName,
+        photoUrl: finalPhotoUrl,
         teamId: AppConfig.teamId,
         points: 0,
         badges: [],
