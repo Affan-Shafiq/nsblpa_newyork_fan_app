@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../models/news_article.dart';
-import '../services/mock_data_service.dart';
 import '../theme/app_theme.dart';
+import '../constants/app_config.dart';
+import 'news_article_detail_screen.dart';
 
 class NewsFeedScreen extends StatelessWidget {
   const NewsFeedScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final articles = MockDataService.getNewsArticles();
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Revenue Runners News'),
@@ -24,18 +24,45 @@ class NewsFeedScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          // TODO: Implement refresh
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('news')
+            .where('teamId', isEqualTo: AppConfig.teamId)
+            .orderBy('publishedAt', descending: true)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(
+              child: Text('Error loading news: ${snapshot.error}'),
+            );
+          }
+          final docs = snapshot.data?.docs ?? [];
+          if (docs.isEmpty) {
+            return const Center(child: Text('No news available'));
+          }
+          final articles = docs.map((d) => NewsArticle.fromFirestore(d)).toList();
+          return RefreshIndicator(
+            onRefresh: () async {
+              // Pull-to-refresh: trigger a single read to refresh cache
+              await FirebaseFirestore.instance
+                  .collection('news')
+                  .where('teamId', isEqualTo: AppConfig.teamId)
+                  .orderBy('publishedAt', descending: true)
+                  .get(const GetOptions(source: Source.server));
+            },
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: articles.length,
+              itemBuilder: (context, index) {
+                final article = articles[index];
+                return NewsArticleCard(article: article);
+              },
+            ),
+          );
         },
-        child: ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: articles.length,
-          itemBuilder: (context, index) {
-            final article = articles[index];
-            return NewsArticleCard(article: article);
-          },
-        ),
       ),
     );
   }
@@ -74,23 +101,7 @@ class NewsArticleCard extends StatelessWidget {
                   ),
                 ),
               ),
-              if (article.isVideo)
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Icon(
-                      Icons.play_arrow,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                ),
+              // Removed video badge support (isVideo)
               Positioned(
                 bottom: 8,
                 left: 8,
@@ -163,31 +174,19 @@ class NewsArticleCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          // TODO: Share article
-                        },
-                        icon: const Icon(Icons.share, size: 16),
-                        label: const Text('Share'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppTheme.primaryColor,
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => NewsArticleDetailScreen(article: article),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          // TODO: Read more
-                        },
-                        icon: const Icon(Icons.read_more, size: 16),
-                        label: const Text('Read More'),
-                      ),
-                    ),
-                  ],
+                      );
+                    },
+                    icon: const Icon(Icons.read_more, size: 16),
+                    label: const Text('Read More'),
+                  ),
                 ),
               ],
             ),

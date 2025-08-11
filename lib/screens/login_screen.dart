@@ -68,12 +68,16 @@ class _LoginScreenState extends State<LoginScreen> {
       if (result != null || _authService.currentUser != null) {
         print('Login successful, proceeding with flow');
         _showSuccessMessage('Welcome back!');
-        // Navigation will be handled by AuthWrapper
+        if (mounted) {
+          Navigator.of(context).pushReplacementNamed('/home');
+        }
       } else {
         // Handle the PigeonUserDetails error case
         print('Handling PigeonUserDetails error case for login');
         _showSuccessMessage('Welcome back!');
-        // Navigation will be handled by AuthWrapper
+        if (mounted) {
+          Navigator.of(context).pushReplacementNamed('/home');
+        }
       }
     } catch (e) {
       print('Login error: $e'); // Debug print
@@ -96,7 +100,9 @@ class _LoginScreenState extends State<LoginScreen> {
       if (result != null || _authService.currentUser != null) {
         print('Google Sign-In successful, proceeding with flow');
         _showSuccessMessage('Welcome back!');
-        // Navigation will be handled by AuthWrapper
+        if (mounted) {
+          Navigator.of(context).pushReplacementNamed('/home');
+        }
       } else if (result == null) {
         // User cancelled Google Sign-In
         print('Google Sign-In was cancelled by user');
@@ -105,7 +111,9 @@ class _LoginScreenState extends State<LoginScreen> {
         // Handle the PigeonUserDetails error case
         print('Handling PigeonUserDetails error case for Google Sign-In');
         _showSuccessMessage('Welcome back!');
-        // Navigation will be handled by AuthWrapper
+        if (mounted) {
+          Navigator.of(context).pushReplacementNamed('/home');
+        }
       }
     } catch (e) {
       print('Google Sign-In error: $e'); // Debug print

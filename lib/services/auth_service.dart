@@ -1,9 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/app_user.dart';
+import '../constants/app_config.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   // Get current user
   User? get currentUser => _auth.currentUser;
@@ -16,6 +17,7 @@ class AuthService {
     required String email,
     required String password,
     required String displayName,
+    String? photoUrl,
   }) async {
     try {
       print('Creating user with email: $email');
@@ -24,6 +26,25 @@ class AuthService {
         password: password,
       );
       print('User created successfully: ${userCredential.user?.uid}');
+
+      // Create user profile in Firestore under users/{uid} as the first step
+      final createdUser = userCredential.user;
+      if (createdUser != null) {
+        await _ensureUserDocument(createdUser,
+            explicitEmail: email, explicitDisplayName: displayName, explicitPhotoUrl: photoUrl);
+
+        // Try to update display name, but ignore the PigeonUserDetails error
+        try {
+          await createdUser.updateDisplayName(displayName);
+        } catch (e) {
+          final message = e.toString();
+          if (message.contains('PigeonUserDetails')) {
+            print('Ignoring PigeonUserDetails error from updateDisplayName');
+          } else {
+            rethrow;
+          }
+        }
+      }
 
       // Don't sign out here - let the UI handle the flow
       // The signup screen will navigate to login, and AuthWrapper will handle the state
@@ -41,8 +62,16 @@ class AuthService {
       if (e.toString().contains('PigeonUserDetails')) {
         print('Detected PigeonUserDetails error - this is likely a Firebase Auth internal issue');
         print('User was created successfully, continuing with flow...');
-        // Return a mock UserCredential to continue the flow
-        // The user was actually created successfully
+        // Ensure user document exists even if error happened earlier
+        try {
+          final current = _auth.currentUser;
+          if (current != null) {
+            await _ensureUserDocument(current,
+                explicitEmail: email, explicitDisplayName: displayName);
+          }
+        } catch (ensureError) {
+          print('Failed ensuring user document after PigeonUserDetails: $ensureError');
+        }
         return null; // We'll handle this in the signup screen
       }
       
@@ -88,7 +117,6 @@ class AuthService {
   Future<void> signOut() async {
     try {
       await _auth.signOut();
-      await _googleSignIn.signOut();
     } catch (e) {
       print('Error during sign out: $e');
       // Continue with sign out even if Google sign out fails
@@ -100,29 +128,16 @@ class AuthService {
     try {
       print('Starting Google Sign-In process');
       
-      // Trigger the authentication flow
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      
-      if (googleUser == null) {
-        print('Google Sign-In was cancelled by user');
-        return null;
-      }
-      
-      print('Google Sign-In successful for: ${googleUser.email}');
-      
-      // Obtain the auth details from the request
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      
-      // Create a new credential
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-      
-      // Sign in to Firebase with the Google credential
-      UserCredential userCredential = await _auth.signInWithCredential(credential);
+      // Use FirebaseAuth's native Google provider flow
+      final userCredential = await _auth.signInWithProvider(GoogleAuthProvider());
       print('Firebase authentication successful: ${userCredential.user?.uid}');
       
+      // Ensure Firestore user document exists
+      final signedInUser = userCredential.user;
+      if (signedInUser != null) {
+        await _ensureUserDocument(signedInUser);
+      }
+
       return userCredential;
     } on FirebaseAuthException catch (e) {
       print('FirebaseAuthException during Google Sign-In: ${e.code} - ${e.message}');
@@ -135,6 +150,14 @@ class AuthService {
       if (e.toString().contains('PigeonUserDetails')) {
         print('Detected PigeonUserDetails error during Google Sign-In - this is likely a Firebase Auth internal issue');
         print('User was signed in successfully, continuing with flow...');
+        try {
+          final current = _auth.currentUser;
+          if (current != null) {
+            await _ensureUserDocument(current);
+          }
+        } catch (ensureError) {
+          print('Failed ensuring user document after Google PigeonUserDetails: $ensureError');
+        }
         return null;
       }
       
@@ -149,6 +172,46 @@ class AuthService {
       await _auth.sendPasswordResetEmail(email: email);
     } on FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
+    }
+  }
+
+  // Ensure Firestore document exists for a user
+  Future<void> _ensureUserDocument(User user, {String? explicitEmail, String? explicitDisplayName, String? explicitPhotoUrl}) async {
+    try {
+      final uid = user.uid;
+      final docRef = FirebaseFirestore.instance.collection('users').doc(uid);
+      final snapshot = await docRef.get();
+      if (snapshot.exists) {
+        // Merge updates including new fields if they don't exist
+        final existingData = snapshot.data() ?? {};
+        await docRef.set({
+          if (explicitEmail != null) 'email': explicitEmail else 'email': user.email,
+          if (explicitDisplayName != null) 'displayName': explicitDisplayName else 'displayName': user.displayName,
+          if (explicitPhotoUrl != null) 'photoUrl': explicitPhotoUrl else 'photoUrl': user.photoURL,
+          'teamId': AppConfig.teamId,
+          // Add new fields if they don't exist
+          if (!existingData.containsKey('points')) 'points': 0,
+          if (!existingData.containsKey('badges')) 'badges': [],
+          if (!existingData.containsKey('postsShared')) 'postsShared': 0,
+          if (!existingData.containsKey('role')) 'role': 'fan', // Ensure role is set
+        }, SetOptions(merge: true));
+        return;
+      }
+
+      final appUser = AppUser(
+        email: explicitEmail ?? user.email ?? '',
+        displayName: explicitDisplayName ?? user.displayName,
+        photoUrl: explicitPhotoUrl ?? user.photoURL,
+        teamId: AppConfig.teamId,
+        points: 0,
+        badges: [],
+        postsShared: 0,
+        role: 'fan', // Default role for new users
+      );
+      await docRef.set(appUser.toJson());
+    } catch (e) {
+      print('Error ensuring user document: $e');
+      rethrow;
     }
   }
 

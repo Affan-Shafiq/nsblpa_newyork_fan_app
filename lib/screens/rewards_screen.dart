@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import '../services/mock_data_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../models/app_user.dart';
+import '../constants/app_config.dart';
 import '../theme/app_theme.dart';
 
 class RewardsScreen extends StatelessWidget {
@@ -7,9 +10,6 @@ class RewardsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final userPoints = MockDataService.getUserPoints();
-    final userBadges = MockDataService.getUserBadges();
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Fan Rewards'),
@@ -22,22 +22,47 @@ class RewardsScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          // TODO: Refresh rewards
+      body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .doc(FirebaseAuth.instance.currentUser?.uid)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error loading user data: ${snapshot.error}'));
+          }
+          
+          final userData = snapshot.data?.data();
+          if (userData == null) {
+            return const Center(child: Text('User data not found'));
+          }
+          
+          final currentUser = AppUser.fromFirestore(userData);
+          final userPoints = currentUser.points;
+          final userBadges = currentUser.badges;
+
+          return RefreshIndicator(
+            onRefresh: () async {
+              await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(FirebaseAuth.instance.currentUser?.uid)
+                  .get(const GetOptions(source: Source.server));
+            },
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                _buildPointsCard(userPoints),
+                const SizedBox(height: 24),
+                _buildBadgesSection(userBadges),
+                const SizedBox(height: 24),
+                _buildEarnPointsSection(context),
+              ],
+            ),
+          );
         },
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _buildPointsCard(userPoints),
-            const SizedBox(height: 24),
-            _buildBadgesSection(userBadges),
-            const SizedBox(height: 24),
-            _buildEarnPointsSection(),
-            const SizedBox(height: 24),
-            _buildRedeemSection(),
-          ],
-        ),
       ),
     );
   }
@@ -156,7 +181,7 @@ class RewardsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEarnPointsSection() {
+  Widget _buildEarnPointsSection(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -170,32 +195,13 @@ class RewardsScreen extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         _buildEarnPointsCard(
-          icon: Icons.location_on,
-          title: 'Attend Games',
-          description: 'Earn 100 points for each game attended',
-          points: '+100',
-          onTap: () {
-            // TODO: Implement game attendance
-          },
-        ),
-        const SizedBox(height: 12),
-        _buildEarnPointsCard(
-          icon: Icons.shopping_bag,
-          title: 'Buy Merchandise',
-          description: 'Earn 10 points per dollar spent',
-          points: '+10/\$',
-          onTap: () {
-            // TODO: Navigate to store
-          },
-        ),
-        const SizedBox(height: 12),
-        _buildEarnPointsCard(
           icon: Icons.share,
           title: 'Share on Social',
           description: 'Earn 25 points for each post shared',
           points: '+25',
           onTap: () {
-            // TODO: Implement social sharing
+            // Navigate to fan cam screen
+            Navigator.of(context).pushNamed('/fan-cam');
           },
         ),
       ],
@@ -261,125 +267,6 @@ class RewardsScreen extends StatelessWidget {
                 ),
                 child: Text(
                   points,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRedeemSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Redeem Rewards',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: AppTheme.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 16),
-        _buildRedeemCard(
-          icon: Icons.discount,
-          title: 'Discount Codes',
-          description: 'Get 10% off on merchandise',
-          points: '500',
-          onTap: () {
-            // TODO: Redeem discount
-          },
-        ),
-        const SizedBox(height: 12),
-        _buildRedeemCard(
-          icon: Icons.people,
-          title: 'Meet & Greet',
-          description: 'Exclusive player meet & greet',
-          points: '2000',
-          onTap: () {
-            // TODO: Redeem meet & greet
-          },
-        ),
-        const SizedBox(height: 12),
-        _buildRedeemCard(
-          icon: Icons.analytics,
-          title: 'VIP Experience',
-          description: 'Exclusive VIP access to events',
-          points: '1500',
-          onTap: () {
-            // TODO: Redeem VIP experience
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRedeemCard({
-    required IconData icon,
-    required String title,
-    required String description,
-    required String points,
-    required VoidCallback onTap,
-  }) {
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppTheme.secondaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  icon,
-                  color: AppTheme.secondaryColor,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      description,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppTheme.secondaryColor,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  '$points pts',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,

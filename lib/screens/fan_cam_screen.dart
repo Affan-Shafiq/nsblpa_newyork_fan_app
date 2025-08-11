@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:io';
 import '../models/fan_photo.dart';
-import '../services/mock_data_service.dart';
+import '../constants/app_config.dart';
 import '../theme/app_theme.dart';
+import '../services/image_upload_service.dart';
 
 class FanCamScreen extends StatefulWidget {
   const FanCamScreen({super.key});
@@ -13,201 +18,282 @@ class FanCamScreen extends StatefulWidget {
 }
 
 class _FanCamScreenState extends State<FanCamScreen> {
+  final ImagePicker _picker = ImagePicker();
+
   @override
   Widget build(BuildContext context) {
-    final fanPhotos = MockDataService.getFanPhotos();
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Fan Cam'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.camera_alt),
+            icon: const Icon(Icons.photo_library),
             onPressed: () {
-              _showUploadOptions(context);
+              _pickImageFromGallery();
             },
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          // TODO: Refresh fan photos
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('fanPhotos')
+            .where('teamId', isEqualTo: AppConfig.teamId)
+            .orderBy('uploadedAt', descending: true)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error loading fan photos: ${snapshot.error}'));
+          }
+          
+          final photos = (snapshot.data?.docs ?? [])
+              .map((doc) => {
+                'photo': FanPhoto.fromFirestore(doc),
+                'id': doc.id,
+              })
+              .toList();
+          
+          if (photos.isEmpty) {
+            return const Center(child: Text('No fan photos yet. Be the first to share!'));
+          }
+
+          return RefreshIndicator(
+            onRefresh: () async {
+              await FirebaseFirestore.instance
+                  .collection('fanPhotos')
+                  .where('teamId', isEqualTo: AppConfig.teamId)
+                  .orderBy('uploadedAt', descending: true)
+                  .get(const GetOptions(source: Source.server));
+            },
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                _buildAllPhotosSection(photos),
+              ],
+            ),
+          );
         },
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _buildFeaturedSection(fanPhotos.where((photo) => photo.isFeatured).toList()),
-            const SizedBox(height: 24),
-            _buildAllPhotosSection(fanPhotos),
-          ],
-        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          _showUploadOptions(context);
+          _pickImageFromGallery();
         },
-        icon: const Icon(Icons.camera_alt),
+        icon: const Icon(Icons.photo_library),
         label: const Text('Share Photo'),
         backgroundColor: AppTheme.primaryColor,
       ),
     );
   }
 
-  Widget _buildFeaturedSection(List<FanPhoto> featuredPhotos) {
-    if (featuredPhotos.isEmpty) return const SizedBox.shrink();
+  Future<void> _pickImageFromGallery() async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1920,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              Icons.star,
-              color: AppTheme.secondaryColor,
-              size: 24,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              'Featured This Week',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-          ],
+      if (image != null) {
+        // Show dialog to add caption
+        _showCaptionDialog(File(image.path));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error picking image: $e'),
+          backgroundColor: Colors.red,
         ),
-        const SizedBox(height: 16),
-        SizedBox(
-          height: 260,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: featuredPhotos.length,
-            itemBuilder: (context, index) {
-              final photo = featuredPhotos[index];
-              return _buildFeaturedPhotoCard(photo);
-            },
-          ),
-        ),
-      ],
-    );
+      );
+    }
   }
 
-  Widget _buildFeaturedPhotoCard(FanPhoto photo) {
-    return Container(
-      width: 280,
-      margin: const EdgeInsets.only(right: 16),
-      child: Card(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Stack(
-              children: [
-                                 ClipRRect(
-                   borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                   child: CachedNetworkImage(
-                     imageUrl: photo.imageUrl,
-                     height: 120,
-                     width: double.infinity,
-                     fit: BoxFit.cover,
-                     placeholder: (context, url) => Container(
-                       height: 120,
-                       color: Colors.grey[300],
-                       child: const Center(child: CircularProgressIndicator()),
-                     ),
-                     errorWidget: (context, url, error) => Container(
-                       height: 120,
-                       color: Colors.grey[300],
-                       child: const Icon(Icons.error),
-                     ),
-                   ),
-                 ),
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: AppTheme.secondaryColor,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.star,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                  ),
+  void _showCaptionDialog(File imageFile) {
+    final TextEditingController captionController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Caption'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.file(
+                  imageFile,
+                  height: 150, // Reduced height to save space
+                  width: double.infinity,
+                  fit: BoxFit.cover,
                 ),
-              ],
-            ),
-                         Padding(
-               padding: const EdgeInsets.all(8),
-               child: Column(
-                 crossAxisAlignment: CrossAxisAlignment.start,
-                 mainAxisSize: MainAxisSize.min,
-                 children: [
-                   Text(
-                     photo.username,
-                     style: TextStyle(
-                       fontSize: 13,
-                       fontWeight: FontWeight.w600,
-                       color: AppTheme.textPrimary,
-                     ),
-                   ),
-                   const SizedBox(height: 2),
-                   Text(
-                     photo.caption,
-                     style: TextStyle(
-                       fontSize: 11,
-                       color: AppTheme.textSecondary,
-                     ),
-                     maxLines: 2,
-                     overflow: TextOverflow.ellipsis,
-                   ),
-                   const SizedBox(height: 6),
-                                       Row(
-                      children: [
-                        Icon(
-                          Icons.favorite,
-                          size: 18,
-                          color: AppTheme.errorColor,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${photo.likes}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                        const Spacer(),
-                        if (photo.socialMediaUrl != null)
-                          IconButton(
-                            onPressed: () {
-                              // TODO: Open social media link
-                            },
-                            icon: const Icon(Icons.share, size: 18),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                          ),
-                      ],
-                    ),
-                 ],
-               ),
-             ),
-          ],
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: captionController,
+                decoration: const InputDecoration(
+                  hintText: 'Write a caption for your photo...',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 2, // Reduced from 3 to 2 lines
+                minLines: 1,
+              ),
+            ],
+          ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _uploadPhoto(imageFile, captionController.text.trim());
+            },
+            child: const Text('Share'),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildAllPhotosSection(List<FanPhoto> allPhotos) {
+  Future<void> _uploadPhoto(File imageFile, String caption) async {
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Get current user
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please sign in to share photos'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Upload image to Freeimage.host
+      String imageUrl;
+      try {
+        print('Attempting upload with fallback...');
+        imageUrl = await ImageUploadService.uploadImageWithFallback(imageFile);
+        print('Upload successful: $imageUrl');
+      } catch (e) {
+        print('All upload methods failed: $e');
+        throw e;
+      }
+
+      // Create photo document in Firestore
+      final photoDoc = await FirebaseFirestore.instance.collection('fanPhotos').add({
+        'username': user.displayName ?? user.email?.split('@')[0] ?? 'Anonymous',
+        'imageUrl': imageUrl,
+        'caption': caption.isNotEmpty ? caption : 'Shared a photo!',
+        'uploadedAt': FieldValue.serverTimestamp(),
+        'likes': 0,
+        'teamId': AppConfig.teamId,
+        'userId': user.uid,
+        'likedBy': [], // Array to track users who liked this photo
+      });
+
+      // Add 25 points to user's points
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .update({
+        'points': FieldValue.increment(25),
+        'postsShared': FieldValue.increment(1),
+      });
+
+      Navigator.pop(context); // Close loading dialog
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Photo shared successfully! +25 points earned!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      Navigator.pop(context); // Close loading dialog
+      print('Upload error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error uploading photo: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    }
+  }
+
+  Future<void> _toggleLike(String photoId, int currentLikes, List<String> likedBy) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please sign in to like photos'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      final userId = user.uid;
+      final newLikedBy = List<String>.from(likedBy);
+      
+      if (newLikedBy.contains(userId)) {
+        // User already liked, remove like
+        newLikedBy.remove(userId);
+        final newLikes = currentLikes - 1;
+        
+        await FirebaseFirestore.instance
+            .collection('fanPhotos')
+            .doc(photoId)
+            .update({
+          'likes': newLikes,
+          'likedBy': newLikedBy,
+        });
+      } else {
+        // User hasn't liked, add like
+        newLikedBy.add(userId);
+        final newLikes = currentLikes + 1;
+        
+        await FirebaseFirestore.instance
+            .collection('fanPhotos')
+            .doc(photoId)
+            .update({
+          'likes': newLikes,
+          'likedBy': newLikedBy,
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error updating like: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Widget _buildAllPhotosSection(List<Map<String, dynamic>> allPhotos) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'All Fan Photos',
+          'Fan Photos',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -228,7 +314,16 @@ class _FanCamScreenState extends State<FanCamScreen> {
     );
   }
 
-  Widget _buildPhotoCard(FanPhoto photo) {
+  Widget _buildPhotoCard(Map<String, dynamic> photoData) {
+    final photo = photoData['photo'];
+    final documentId = photoData['id'];
+    final currentLikes = photo.likes;
+    final likedBy = photo.likedBy;
+    
+    // Check if current user has liked this photo
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final hasLiked = currentUser != null && likedBy.contains(currentUser.uid);
+    
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       child: Column(
@@ -255,26 +350,6 @@ class _FanCamScreenState extends State<FanCamScreen> {
                   ),
                 ),
               ),
-              if (photo.isFeatured)
-                Positioned(
-                  top: 8,
-                  left: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppTheme.secondaryColor,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Text(
-                      'FEATURED',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
             ],
           ),
           Padding(
@@ -319,26 +394,17 @@ class _FanCamScreenState extends State<FanCamScreen> {
                         ],
                       ),
                     ),
-                    IconButton(
-                      onPressed: () {
-                        // TODO: Like photo
-                      },
-                      icon: Icon(
-                        Icons.favorite_border,
-                        size: 20,
-                        color: AppTheme.textSecondary,
+                    if (documentId != null)
+                      IconButton(
+                        onPressed: () {
+                          _toggleLike(documentId, currentLikes, likedBy);
+                        },
+                        icon: Icon(
+                          hasLiked ? Icons.favorite : Icons.favorite_border,
+                          size: 20,
+                          color: hasLiked ? AppTheme.errorColor : AppTheme.textSecondary,
+                        ),
                       ),
-                    ),
-                    IconButton(
-                      onPressed: () {
-                        // TODO: Share photo
-                      },
-                      icon: Icon(
-                        Icons.share,
-                        size: 20,
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -359,69 +425,18 @@ class _FanCamScreenState extends State<FanCamScreen> {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      '${photo.likes} likes',
+                      '$currentLikes likes',
                       style: TextStyle(
                         fontSize: 12,
                         color: AppTheme.textSecondary,
                       ),
                     ),
-                    const Spacer(),
-                    if (photo.socialMediaUrl != null)
-                      TextButton.icon(
-                        onPressed: () {
-                          // TODO: Open social media link
-                        },
-                        icon: const Icon(Icons.link, size: 16),
-                        label: const Text('View Original'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppTheme.primaryColor,
-                          padding: EdgeInsets.zero,
-                        ),
-                      ),
                   ],
                 ),
               ],
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  void _showUploadOptions(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('Take Photo'),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO: Implement camera functionality
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('Choose from Gallery'),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO: Implement gallery picker
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.videocam),
-              title: const Text('Record Video'),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO: Implement video recording
-              },
-            ),
-          ],
-        ),
       ),
     );
   }

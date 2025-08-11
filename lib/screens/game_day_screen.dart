@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/game.dart';
-import '../services/mock_data_service.dart';
+import '../constants/app_config.dart';
 import '../theme/app_theme.dart';
+import 'game_detail_screen.dart';
 
 class GameDayScreen extends StatefulWidget {
   const GameDayScreen({super.key});
@@ -12,58 +14,80 @@ class GameDayScreen extends StatefulWidget {
 }
 
 class _GameDayScreenState extends State<GameDayScreen> {
-  late Game nextGame;
-  late Duration timeUntilGame;
+  // Removed state fields to avoid setState during StreamBuilder build
 
   @override
   void initState() {
     super.initState();
-    final games = MockDataService.getGames();
-    nextGame = games.firstWhere((game) => game.isUpcoming);
-    _updateCountdown();
+    // Next game and countdown will be computed when snapshot arrives
   }
 
-  void _updateCountdown() {
-    setState(() {
-      timeUntilGame = nextGame.dateTime.difference(DateTime.now());
-    });
-  }
+  // No setState-driven countdown updates inside build
 
   @override
   Widget build(BuildContext context) {
-    final games = MockDataService.getGames();
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Game Day Center'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.calendar_today),
-            onPressed: () {
-              // TODO: Sync with calendar
-            },
-          ),
-        ],
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          // TODO: Refresh games
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('games')
+            .orderBy('dateTime')
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error loading games: ${snapshot.error}'));
+          }
+          final allGames = (snapshot.data?.docs ?? [])
+              .map((d) => Game.fromFirestore(d))
+              .toList();
+          
+          // Filter games that contain the current team in their sides
+          final games = allGames.where((game) => 
+            game.sides.any((side) => side.sideId == AppConfig.teamId)
+          ).toList();
+          if (games.isEmpty) {
+            return const Center(child: Text('No games scheduled'));
+          }
+
+          final Game? nextGame = games
+              .where((g) => g.dateTime.isAfter(DateTime.now()))
+              .fold<Game?>(null, (prev, g) => (prev == null || g.dateTime.isBefore(prev.dateTime)) ? g : prev) ??
+              games.first;
+          final DateTime? nextDt = nextGame?.dateTime;
+          final Duration? timeUntilGame = (nextDt != null && nextDt.isAfter(DateTime.now()))
+              ? nextDt.difference(DateTime.now())
+              : null;
+
+          return RefreshIndicator(
+            onRefresh: () async {
+              await FirebaseFirestore.instance
+                  .collection('games')
+                  .orderBy('dateTime')
+                  .get(const GetOptions(source: Source.server));
+            },
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                _buildNextGameCard(nextGame),
+                const SizedBox(height: 24),
+                _buildCountdownCard(timeUntilGame, nextGame),
+                const SizedBox(height: 24),
+                _buildGamesList(games),
+              ],
+            ),
+          );
         },
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _buildNextGameCard(),
-            const SizedBox(height: 24),
-            _buildCountdownCard(),
-            const SizedBox(height: 24),
-            _buildGamesList(games),
-          ],
-        ),
       ),
     );
   }
 
-  Widget _buildNextGameCard() {
+  Widget _buildNextGameCard(Game? ng) {
+    if (ng == null) return const SizedBox.shrink();
     return Card(
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -113,7 +137,7 @@ class _GameDayScreenState extends State<GameDayScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'vs ${nextGame.opponent}',
+                        'vs ${ng.getOpponent(AppConfig.teamId)}',
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.9),
                           fontSize: 14,
@@ -122,39 +146,12 @@ class _GameDayScreenState extends State<GameDayScreen> {
                     ],
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    nextGame.isHome ? 'HOME' : 'AWAY',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
+                const SizedBox.shrink(),
               ],
             ),
             const SizedBox(height: 12),
             Row(
               children: [
-                Icon(
-                  Icons.location_on,
-                  color: Colors.white.withOpacity(0.8),
-                  size: 16,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  nextGame.venue,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.8),
-                    fontSize: 14,
-                  ),
-                ),
                 const Spacer(),
                 Icon(
                   Icons.access_time,
@@ -163,7 +160,7 @@ class _GameDayScreenState extends State<GameDayScreen> {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  DateFormat('MMM dd, yyyy - h:mm a').format(nextGame.dateTime),
+                  DateFormat('MMM dd, yyyy - h:mm a').format(ng.dateTime),
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.8),
                     fontSize: 14,
@@ -177,7 +174,8 @@ class _GameDayScreenState extends State<GameDayScreen> {
     );
   }
 
-  Widget _buildCountdownCard() {
+  Widget _buildCountdownCard(Duration? timeUntilGame, Game? nextGame) {
+    if (timeUntilGame == null) return const SizedBox.shrink();
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -201,7 +199,11 @@ class _GameDayScreenState extends State<GameDayScreen> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () {
-                  // TODO: View game details
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => GameDetailScreen(game: nextGame!),
+                    ),
+                  );
                 },
                 icon: const Icon(Icons.info),
                 label: const Text('Game Details'),
@@ -299,9 +301,13 @@ class GameCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 TextButton.icon(
-                  onPressed: () {
-                    // TODO: View game info
-                  },
+                                  onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => GameDetailScreen(game: game),
+                    ),
+                  );
+                },
                   icon: const Icon(Icons.info, size: 16),
                   label: const Text('Details'),
                 ),
@@ -315,11 +321,11 @@ class GameCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        game.isHome ? 'Revenue Runners' : game.opponent,
+                        'Revenue Runners',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       Text(
-                        game.isHome ? 'vs ${game.opponent}' : 'at ${game.opponent}',
+                        'vs ${game.getOpponent(AppConfig.teamId)}',
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ],
@@ -346,19 +352,6 @@ class GameCard extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                Icon(
-                  Icons.location_on,
-                  size: 16,
-                  color: AppTheme.textSecondary,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  game.venue,
-                  style: TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 14,
-                  ),
-                ),
                 const Spacer(),
                 Text(
                   DateFormat('MMM dd, yyyy').format(game.dateTime),

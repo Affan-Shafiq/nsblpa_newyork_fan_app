@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
+import '../services/image_upload_service.dart';
 import 'login_screen.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -16,10 +19,13 @@ class _SignupScreenState extends State<SignupScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _nameController = TextEditingController();
+  final ImagePicker _picker = ImagePicker();
   
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  File? _selectedProfileImage;
+  String? _uploadedImageUrl;
 
   final AuthService _authService = AuthService();
 
@@ -44,6 +50,56 @@ class _SignupScreenState extends State<SignupScreen> {
     });
   }
 
+  Future<void> _pickProfileImage() async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        setState(() {
+          _selectedProfileImage = File(image.path);
+        });
+        
+        // Upload the image immediately
+        await _uploadProfileImage();
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error picking image: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _uploadProfileImage() async {
+    if (_selectedProfileImage == null) return;
+
+    try {
+      _uploadedImageUrl = await ImageUploadService.uploadImageWithFallback(_selectedProfileImage!);
+      setState(() {});
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile picture uploaded successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error uploading profile picture: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -56,16 +112,16 @@ class _SignupScreenState extends State<SignupScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
         displayName: _nameController.text.trim(),
+        photoUrl: _uploadedImageUrl, // Pass the uploaded image URL
       );
       
       // Check if we got a result (normal flow) or null (PigeonUserDetails error)
       if (result != null || _authService.currentUser != null) {
         print('Signup successful, proceeding with flow');
         
-        // Sign out the user after successful signup
+        // Sign out user then navigate to login with email pre-filled
         await _authService.signOut();
-        
-        // Navigate to login screen with email pre-filled
+
         if (mounted) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
@@ -214,6 +270,108 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
 
                 const SizedBox(height: 40),
+
+                // Profile Picture Upload
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Profile Picture',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        Center(
+                          child: Stack(
+                            children: [
+                              CircleAvatar(
+                                radius: 60,
+                                backgroundImage: _selectedProfileImage != null
+                                    ? FileImage(_selectedProfileImage!)
+                                    : (_uploadedImageUrl != null
+                                        ? NetworkImage(_uploadedImageUrl!) as ImageProvider
+                                        : null),
+                                backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+                                child: _selectedProfileImage == null && _uploadedImageUrl == null
+                                    ? Icon(
+                                        Icons.person,
+                                        size: 60,
+                                        color: AppTheme.primaryColor,
+                                      )
+                                    : null,
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.primaryColor,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white, width: 2),
+                                  ),
+                                  child: IconButton(
+                                    onPressed: _pickProfileImage,
+                                    icon: const Icon(
+                                      Icons.camera_alt,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        const SizedBox(height: 16),
+                        
+                        Center(
+                          child: ElevatedButton.icon(
+                            onPressed: _pickProfileImage,
+                            icon: const Icon(Icons.photo_library),
+                            label: const Text('Choose Profile Picture'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryColor,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                        
+                        if (_uploadedImageUrl != null) ...[
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.check_circle, color: Colors.green),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Profile picture uploaded successfully',
+                                    style: TextStyle(color: Colors.green[700]),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
 
                 // Name field
                 TextFormField(
