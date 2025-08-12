@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Exclude sensitive data from backup -->
+    <exclude domain="sharedpref" path="firebase_auth.xml"/>
+    <exclude domain="sharedpref" path="google_sign_in.xml"/>
+    <exclude domain="sharedpref" path="firebase_core.xml"/>
+    
+    <!-- Include app data -->
+    <include domain="sharedpref" path="flutter.xml"/>
+    <include domain="database" path="flutter.db"/>
+    <include domain="file" path="flutter_assets"/>
+</full-backup-content>
