@@ -127,13 +127,29 @@ class _GameDayScreenState extends State<GameDayScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Revenue Runners',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      FutureBuilder<DocumentSnapshot>(
+                        future: FirebaseFirestore.instance.collection('teams').doc(AppConfig.teamId).get(),
+                        builder: (context, teamSnapshot) {
+                          if (teamSnapshot.connectionState == ConnectionState.waiting) {
+                            return const Text(
+                              'Loading...',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            );
+                          }
+                          final teamName = (teamSnapshot.data?.data() as Map<String, dynamic>?)?['name'] as String? ?? 'Profit Pursuers';
+                          return Text(
+                            teamName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -320,9 +336,21 @@ class GameCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Revenue Runners',
-                        style: Theme.of(context).textTheme.titleMedium,
+                      FutureBuilder<DocumentSnapshot>(
+                        future: FirebaseFirestore.instance.collection('teams').doc(AppConfig.teamId).get(),
+                        builder: (context, teamSnapshot) {
+                          if (teamSnapshot.connectionState == ConnectionState.waiting) {
+                            return Text(
+                              'Loading...',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            );
+                          }
+                          final teamName = (teamSnapshot.data?.data() as Map<String, dynamic>?)?['name'] as String? ?? 'Profit Pursuers';
+                          return Text(
+                            teamName,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          );
+                        },
                       ),
                       Text(
                         'vs ${game.getOpponent(AppConfig.teamId)}',

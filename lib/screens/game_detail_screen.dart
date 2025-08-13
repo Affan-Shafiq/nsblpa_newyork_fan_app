@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/game.dart';
 import '../theme/app_theme.dart';
 import '../constants/app_config.dart';
@@ -61,13 +62,29 @@ class GameDetailScreen extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 20),
-                    Text(
-                      'Revenue Runners',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    FutureBuilder<DocumentSnapshot>(
+                      future: FirebaseFirestore.instance.collection('teams').doc(AppConfig.teamId).get(),
+                      builder: (context, teamSnapshot) {
+                        if (teamSnapshot.connectionState == ConnectionState.waiting) {
+                          return const Text(
+                            'Loading...',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          );
+                        }
+                        final teamName = (teamSnapshot.data?.data() as Map<String, dynamic>?)?['name'] as String? ?? 'Profit Pursuers';
+                        return Text(
+                          teamName,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 8),
                     Text(
