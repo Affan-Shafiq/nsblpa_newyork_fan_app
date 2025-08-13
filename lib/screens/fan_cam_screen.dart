@@ -60,19 +60,19 @@ class _FanCamScreenState extends State<FanCamScreen> {
           }
 
           return RefreshIndicator(
-            onRefresh: () async {
+        onRefresh: () async {
               await FirebaseFirestore.instance
                   .collection('fanPhotos')
                   .where('teamId', isEqualTo: AppConfig.teamId)
                   .orderBy('uploadedAt', descending: true)
                   .get(const GetOptions(source: Source.server));
-            },
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
+        },
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
                 _buildAllPhotosSection(photos),
-              ],
-            ),
+          ],
+        ),
           );
         },
       ),
@@ -118,16 +118,16 @@ class _FanCamScreenState extends State<FanCamScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Add Caption'),
         content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ClipRRect(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+              children: [
+                                 ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: Image.file(
                   imageFile,
                   height: 150, // Reduced height to save space
-                  width: double.infinity,
-                  fit: BoxFit.cover,
+                     width: double.infinity,
+                     fit: BoxFit.cover,
                 ),
               ),
               const SizedBox(height: 16),
@@ -139,9 +139,9 @@ class _FanCamScreenState extends State<FanCamScreen> {
                 ),
                 maxLines: 2, // Reduced from 3 to 2 lines
                 minLines: 1,
-              ),
-            ],
-          ),
+                ),
+              ],
+            ),
         ),
         actions: [
           TextButton(
@@ -149,14 +149,14 @@ class _FanCamScreenState extends State<FanCamScreen> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
+                            onPressed: () {
               Navigator.pop(context);
               _uploadPhoto(imageFile, captionController.text.trim());
-            },
+                            },
             child: const Text('Share'),
-          ),
-        ],
-      ),
+                          ),
+                      ],
+                    ),
     );
   }
 
@@ -347,9 +347,9 @@ class _FanCamScreenState extends State<FanCamScreen> {
                     height: 200,
                     color: Colors.grey[300],
                     child: const Icon(Icons.error),
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
           Padding(
@@ -395,16 +395,16 @@ class _FanCamScreenState extends State<FanCamScreen> {
                       ),
                     ),
                     if (documentId != null)
-                      IconButton(
-                        onPressed: () {
+                    IconButton(
+                      onPressed: () {
                           _toggleLike(documentId, currentLikes, likedBy);
-                        },
-                        icon: Icon(
+                      },
+                      icon: Icon(
                           hasLiked ? Icons.favorite : Icons.favorite_border,
-                          size: 20,
+                        size: 20,
                           color: hasLiked ? AppTheme.errorColor : AppTheme.textSecondary,
-                        ),
                       ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -429,8 +429,8 @@ class _FanCamScreenState extends State<FanCamScreen> {
                       style: TextStyle(
                         fontSize: 12,
                         color: AppTheme.textSecondary,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ],

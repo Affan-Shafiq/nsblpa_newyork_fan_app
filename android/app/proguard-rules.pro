@@ -78,7 +78,7 @@
 }
 
 # Keep custom application class
--keep class com.nblpa.fan.miami.MainActivity { *; }
+-keep class com.nsblpa.fan.newyork.MainActivity { *; }
 
 # Keep Kotlin metadata
 -keep class kotlin.Metadata { *; }

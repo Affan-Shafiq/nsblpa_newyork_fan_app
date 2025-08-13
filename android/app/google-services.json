@@ -78,6 +78,43 @@
           ]
         }
       }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:493050521152:android:a3172d76fe02d4d29261a5",
+        "android_client_info": {
+          "package_name": "com.nsblpa.fan.newyork"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "493050521152-a6lptn7del27eo9g8jd823dovn5q1dei.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.nsblpa.fan.newyork",
+            "certificate_hash": "72083da4f42c0a71209ac52adf75488f3a24bb30"
+          }
+        },
+        {
+          "client_id": "493050521152-togjdmtks8ln6eludbnf61539qaecdki.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB8qJRjvivn-wnQcfN6-TYaRR1uizVG_6k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "493050521152-togjdmtks8ln6eludbnf61539qaecdki.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
     }
   ],
   "configuration_version": "1"

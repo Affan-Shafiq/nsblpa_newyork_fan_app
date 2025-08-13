@@ -175,7 +175,7 @@ class _SignupScreenState extends State<SignupScreen> {
       
       if (result != null || _authService.currentUser != null) {
         print('Google Sign-In successful, proceeding with flow');
-        _showSuccessMessage('Welcome to Miami Revenue Runners!');
+        _showSuccessMessage('Welcome to NYC Profit Pursuers!');
         // Navigation will be handled by AuthWrapper
       } else if (result == null) {
         // User cancelled Google Sign-In
@@ -184,7 +184,7 @@ class _SignupScreenState extends State<SignupScreen> {
       } else {
         // Handle the PigeonUserDetails error case
         print('Handling PigeonUserDetails error case for Google Sign-In');
-        _showSuccessMessage('Welcome to Miami Revenue Runners!');
+        _showSuccessMessage('Welcome to NYC Profit Pursuers!');
         // Navigation will be handled by AuthWrapper
       }
     } catch (e) {
@@ -244,16 +244,16 @@ class _SignupScreenState extends State<SignupScreen> {
                       ),
                       child: ClipOval(
                         child: Image.asset(
-                          'assets/logos/miami_logo.png',
+                          'assets/logos/newyork_logo.png',
                           width: 180,
                           height: 180,
-                          fit: BoxFit.contain,
+                          fit: BoxFit.cover,
                         ),
                       ),
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      'Miami Revenue Runners',
+                      'NYC Profit Pursuers',
                       style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         color: AppTheme.primaryColor,
                         fontWeight: FontWeight.bold,

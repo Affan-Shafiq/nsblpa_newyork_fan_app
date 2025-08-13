@@ -339,7 +339,7 @@ class GameCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      game.score!,
+                      '${game.score!.home} - ${game.score!.away}',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
@@ -370,12 +370,16 @@ class GameCard extends StatelessWidget {
 
   Color _getStatusColor(String status) {
     switch (status) {
-      case 'upcoming':
+      case 'Scheduled':
         return AppTheme.primaryColor;
-      case 'live':
+      case 'Live':
         return AppTheme.accentColor;
-      case 'completed':
+      case 'Completed':
         return AppTheme.textSecondary;
+      case 'Cancelled':
+        return Colors.red;
+      case 'Postponed':
+        return Colors.orange;
       default:
         return AppTheme.primaryColor;
     }

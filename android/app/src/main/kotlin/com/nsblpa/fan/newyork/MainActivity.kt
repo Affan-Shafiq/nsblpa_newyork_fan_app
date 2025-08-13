@@ -1,4 +1,4 @@
-package com.nblpa.fan.miami
+package com.nsblpa.fan.newyork
 
 import io.flutter.embedding.android.FlutterActivity
 

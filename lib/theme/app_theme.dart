@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Miami Revenue Runners Colors
-  static const Color primaryColor = Color(0xFF1E3A8A); // Deep Blue
-  static const Color secondaryColor = Color(0xFFF59E0B); // Gold
-  static const Color accentColor = Color(0xFF10B981); // Green
+  // New York Profit Pursuers Colors
+  static const Color primaryColor = Color(0xFF1E40AF); // NYC Blue
+  static const Color secondaryColor = Color(0xFFFF6B35); // NYC Orange
+  static const Color accentColor = Color(0xFF10B981); // Green for profit/growth
   static const Color backgroundColor = Color(0xFFF8FAFC);
   static const Color surfaceColor = Colors.white;
   static const Color textPrimary = Color(0xFF1F2937);

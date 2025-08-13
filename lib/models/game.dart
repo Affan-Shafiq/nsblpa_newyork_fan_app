@@ -11,8 +11,8 @@ class GameSide {
 
   factory GameSide.fromJson(Map<String, dynamic> json) {
     return GameSide(
-      sideId: json['sideId'] as String,
-      sideName: json['sideName'] as String,
+      sideId: json['sideId'] as String? ?? '',
+      sideName: json['sideName'] as String? ?? '',
     );
   }
 
@@ -24,11 +24,35 @@ class GameSide {
   }
 }
 
+class GameScore {
+  final int home;
+  final int away;
+
+  GameScore({
+    required this.home,
+    required this.away,
+  });
+
+  factory GameScore.fromJson(Map<String, dynamic> json) {
+    return GameScore(
+      home: json['home'] as int? ?? 0,
+      away: json['away'] as int? ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'home': home,
+      'away': away,
+    };
+  }
+}
+
 class Game {
   final List<GameSide> sides;
   final DateTime dateTime;
-  final String? score;
-  final String status; // 'upcoming', 'live', 'completed'
+  final GameScore? score;
+  final String status; // 'Scheduled', 'Live', 'Completed', 'Cancelled', 'Postponed'
 
   Game({
     required this.sides,
@@ -70,11 +94,16 @@ class Game {
     final sidesList = json['sides'] as List<dynamic>? ?? [];
     final sides = sidesList.map((side) => GameSide.fromJson(side as Map<String, dynamic>)).toList();
     
+    GameScore? gameScore;
+    if (json['score'] != null) {
+      gameScore = GameScore.fromJson(json['score'] as Map<String, dynamic>);
+    }
+    
     return Game(
       sides: sides,
       dateTime: _parseTimestamp(json['dateTime']) ?? DateTime.now(),
-      score: json['score'] as String?,
-      status: json['status'] as String,
+      score: gameScore,
+      status: json['status'] as String? ?? 'Scheduled',
     );
   }
 
@@ -83,11 +112,16 @@ class Game {
     final sidesList = data['sides'] as List<dynamic>? ?? [];
     final sides = sidesList.map((side) => GameSide.fromJson(side as Map<String, dynamic>)).toList();
     
+    GameScore? gameScore;
+    if (data['score'] != null) {
+      gameScore = GameScore.fromJson(data['score'] as Map<String, dynamic>);
+    }
+    
     return Game(
       sides: sides,
       dateTime: _parseTimestamp(data['dateTime']) ?? DateTime.now(),
-      score: data['score'] as String?,
-      status: data['status'] as String? ?? 'upcoming',
+      score: gameScore,
+      status: data['status'] as String? ?? 'Scheduled',
     );
   }
 
@@ -95,14 +129,16 @@ class Game {
     return {
       'sides': sides.map((side) => side.toJson()).toList(),
       'dateTime': Timestamp.fromDate(dateTime),
-      'score': score,
+      'score': score?.toJson(),
       'status': status,
     };
   }
 
-  bool get isUpcoming => status == 'upcoming';
-  bool get isLive => status == 'live';
-  bool get isCompleted => status == 'completed';
+  bool get isScheduled => status == 'Scheduled';
+  bool get isLive => status == 'Live';
+  bool get isCompleted => status == 'Completed';
+  bool get isCancelled => status == 'Cancelled';
+  bool get isPostponed => status == 'Postponed';
 
   static DateTime? _parseTimestamp(dynamic value) {
     if (value == null) return null;

@@ -89,7 +89,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('NSBLPA Fan App'),
+        title: const Text('NYC Profit Pursuers'),
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
         actions: [

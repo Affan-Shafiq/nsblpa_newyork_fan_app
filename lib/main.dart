@@ -12,16 +12,16 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  runApp(const RevenueRunnersApp());
+  runApp(const ProfitPursuersApp());
 }
 
-class RevenueRunnersApp extends StatelessWidget {
-  const RevenueRunnersApp({super.key});
+class ProfitPursuersApp extends StatelessWidget {
+  const ProfitPursuersApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Revenue Runners Fan App',
+      title: 'New York Profit Pursuers Fan App',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: const AuthWrapper(),

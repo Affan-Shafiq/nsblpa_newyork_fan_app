@@ -86,7 +86,7 @@ class GameDetailScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          game.score!,
+                          '${game.score!.home} - ${game.score!.away}',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,

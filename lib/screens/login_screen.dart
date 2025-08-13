@@ -195,16 +195,16 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       child: ClipOval(
                         child: Image.asset(
-                          'assets/logos/miami_logo.png',
+                          'assets/logos/newyork_logo.png',
                           width: 180,
                           height: 180,
-                          fit: BoxFit.contain,
+                          fit: BoxFit.cover,
                         ),
                       ),
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      'Miami Revenue Runners',
+                      'NYC Profit Pursuers',
                       style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         color: AppTheme.primaryColor,
                         fontWeight: FontWeight.bold,

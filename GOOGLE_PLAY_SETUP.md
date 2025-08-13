@@ -68,8 +68,8 @@ The AAB file will be located at: `build/app/outputs/bundle/release/app-release.a
    - Fill in basic app information
 
 2. **App Content**:
-   - **App name**: "NSBLPA Miami Fan App"
-   - **Package name**: "com.nblpa.fan.miami"
+   - **App name**: "NYC Profit Pursuers Fan App"
+   - **Package name**: "com.nsblpa.fan.newyork"
    - **Short description**: Brief description of your app
    - **Full description**: Detailed description with features
    - **App category**: Sports or Entertainment

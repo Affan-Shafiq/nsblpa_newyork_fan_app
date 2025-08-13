@@ -18,9 +18,9 @@
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
     <application
-        android:label="NSBLPA Miami Fan App"
+        android:label="NSBLPA NYC Fan App"
         android:name="${applicationName}"
-        android:icon="@mipmap/miami_logo"
+        android:icon="@mipmap/newyork_logo"
         android:allowBackup="true"
         android:fullBackupContent="@xml/backup_rules"
         android:requestLegacyExternalStorage="true"

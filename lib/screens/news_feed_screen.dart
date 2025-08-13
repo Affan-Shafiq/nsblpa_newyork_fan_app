@@ -14,7 +14,7 @@ class NewsFeedScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Revenue Runners News'),
+        title: const Text('NYC Profit Pursuers News'),
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications),
