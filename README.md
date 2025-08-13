@@ -1,6 +1,6 @@
-# Revenue Runners Fan App - Miami
+# Profit Pursuers Fan App - NYC
 
-A comprehensive fan engagement app for the Miami Revenue Runners team, built with Flutter.
+A comprehensive fan engagement app for the New York Profit Pursuers team, built with Flutter.
 
 ## 🏈 Features
 
